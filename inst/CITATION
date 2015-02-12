@@ -1,0 +1,16 @@
+bibentry("Article",
+         title = "{GC-Content Normalization for RNA-Seq Data}",
+         author = c(person("Davide", "Risso"),
+	 person("Katja", "Schwartz"),
+	 person("Gavin", "Sherlock"),
+         person("Sandrine", "Dudoit")),
+         year = 2011,
+         journal = "BMC Bioinformatics",
+	 volume = "12",
+         number = "1",
+	 pages = "480",
+         textVersion = 
+         paste("D. Risso, K. Schwartz, G. Sherlock and S. Dudoit","(2011).",
+               "GC-Content Normalization for RNA-Seq Data.",
+               "BMC Bioinformatics","12:480")
+         )
