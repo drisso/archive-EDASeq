@@ -43,7 +43,7 @@ before_install:
 
 install:
 #  - $RENV install_r 
-  - $RENV install_bioc Biobase Rsamtools ShortRead BiocGenerics IRanges DESeq aroma.light 
+  - $RENV install_bioc Biobase Rsamtools ShortRead BiocGenerics IRanges DESeq aroma.light BiocStyle knitr yeastRNASeq leeBamViews edgeR
 ## Less overhead when not using 'install_deps'
 ##  - $RENV install_deps
 
