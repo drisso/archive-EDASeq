@@ -10,7 +10,8 @@
 }
 
 \usage{
-plotPCA(object, k=2, labels=TRUE, ...)
+\S4method{plotPCA}{matrix}(object, k=2, labels=TRUE, ...)
+\S4method{plotPCA}{SeqExpressionSet}(object, k=2, labels=TRUE, ...)
 }
 
 \arguments{
