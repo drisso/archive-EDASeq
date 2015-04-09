@@ -12,7 +12,7 @@ Description: Numerical and graphical summaries of RNA-Seq read data.
 Authors@R: c(person("Davide", "Risso", email = "risso.davide@gmail.com",
 	          role = c("aut", "cre", "cph")),
 	     person("Sandrine", "Dudoit", role = "aut"),
-	     person("Ludwig", "Geistlinger", rolw = "ctb"))
+	     person("Ludwig", "Geistlinger", role = "ctb"))
 Author: Davide Risso [aut, cre, cph], Sandrine Dudoit [aut], Ludwig Geistlinger [ctb]
 Maintainer: Davide Risso <risso.davide@gmail.com>
 Date: 08-30-2011
