@@ -13,3 +13,4 @@ exportMethods(length, width, initialize, barplot, plot, plotQuality, exprs, offs
               meanVarPlot, biasPlot, plotNtFrequency, withinLaneNormalization, betweenLaneNormalization,
               biasBoxplot, MDPlot, plotRLE, plotPCA, normCounts, "normCounts<-", counts, "counts<-")
 export(newSeqExpressionSet,plotQuality)
+export(getGeneLengthAndGCContent)
