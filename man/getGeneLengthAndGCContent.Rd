@@ -12,27 +12,47 @@ getGeneLengthAndGCContent(id, org, mode=c("biomart", "org.db"))
 }
 
 \arguments{
-  \item{id}{one or more gene IDs (ensembl or entrez).}
-  \item{org}{organism three letter code, e.g. 'hsa' for 'Homo sapiens'.}
-  \item{mode}{which mode to use to retrieve the information.}
+  \item{id}{
+    Character vector of one or more ENSEMBL or ENTREZ gene IDs.
+  }
+  \item{org}{
+    Organism three letter code, e.g. 'hsa' for 'Homo sapiens'. 
+    See also: http://www.genome.jp/kegg/catalog/org_list.html;
+    In org.db mode, this can be also a specific genome assembly, 
+    e.g. 'hg38' or 'sacCer3'.
+  }
+  \item{mode}{
+    Mode to retrieve the information. Defaults to 'biomart'. See Details.
+  }
 }
 
 \details{
-In 'biomart' mode, it supports all ENSEMBL organisms, but might be time-consuming.
+    The 'biomart' mode is based on functionality from the biomaRt 
+    packgage and retrieves the required information from the BioMart database.
+    This is available for all ENSEMBL organisms and is typically most current, 
+    but can be time-consuming when querying several thousand genes at a time.
 
-In 'org.db' mode, it is based on Bioconductor's annotation packages. It is much faster,
-but only for organisms with a TxDb, BSgenome and OrgDb package. It assumes that the
-packages are installed.
+    The 'org.db' mode uses organism-based annotation packages from
+    Bioconductor. This is much faster than the 'biomart' mode, but is only
+    available for selected model organism currently supported by  
+    BioC annotation functionality. 
 }
 
 \value{
 A numeric matrix with two columns: gene length and GC-content.
 }
 
-\author{
-Ludwig Geistlinger
+\seealso{
+    \code{\link{getSequence}} to retrieve a genomic sequence from BioMart,
+    \code{\link{genes}} to extract genomic coordinates from a TxDb object,
+    \code{\link{getSeq}} to extract genomic sequences from a BSgenome object,
+    \code{\link{alphabetFrequency}} to calculate nucleotide frequencies.
 }
 
-\example{
+\author{
+Ludwig Geistlinger <Ludwig.Geistlinger@bio.ifi.lmu.de>
+}
+
+\examples{
 getGeneLengthAndGCContent("ENSG00000012048", "hsa")
 }
