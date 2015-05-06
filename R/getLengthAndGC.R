@@ -16,36 +16,12 @@
 #                    for organisms with a respective TxDb, BSgenome, and OrgDb package)
 getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
 {
-    BIOC.ANNO.URL <- "http://bioconductor.org/packages/release/data/annotation/src/contrib"
-
-    SPECIES <- rbind(
-        c("anopheles", "Anopheles gambiae", "Ag", "aga", "anoGam", "7165"),
-        c("arabidopsis", "Arabidopsis thaliana", "At", "ath", NA, "3702"),
-        c("bovine", "Bos taurus", "Bt", "bta", "bosTau", "9913"),
-        c("canine", "Canis familiaris", "Cf", "cfa", "canFam", "9615"),
-        c("chicken", "Gallus gallus", "Gg", "gga", "galGal", "9031"), 
-        c("chimp", "Pan troglodytes", "Pt", "ptr", "PanTro", "9598"),
-        c("ecoliK12", "Escherichia coli K12", "EcK12", "eco", NA, "562,83333,511145"), 
-        c("ecoliSakai", "Escherichia coli Sakai", "EcSakai", "ecs", NA, "83334"),
-        c("fly", "Drosophila melanogaster", "Dm", "dme", "dm", "7227"),
-        c("human", "Homo sapiens", "Hs", "hsa", "hg", "9606"),
-        c("malaria", "Plasmodium falciparum", "Pf", "pfa", NA, "5833"),
-        c("mouse", "Mus musculus", "Mm", "mmu", "mm", "10090"),
-        c("pig", "Sus scrofa", "Ss", "ssc", "susScr", "9823"),
-        c("rat", "Rattus norvegicus", "Rn", "rno", "rn", "10116"), 
-        c("rhesus", "Macaca mulatta", "Mmu", "mcc", "rheMac", "9544"),  
-        c("worm", "Caenorhabditis elegans", "Ce", "cel", "ce", "6239"),
-        c("xenopus", "Xenopus laevis", "Xl", "xla", "NA", "8355"),
-        c("yeast", "Saccharomyces cerevisiae", "Sc", "sce", "sacCer", "4932,559292"),
-        c("zebrafish", "Danio rerio", "Dr", "dre", "danRer", "7955")
-    )
-    colnames(SPECIES) <- c("common", "tax", "bioc", "kegg", "ucsc", "ncbi")
-
     id.type <- .autoDetectGeneIdType(id[1])
     if(is.na(id.type))
-        stop("Only ENTREZ or ENSEMBL gene IDs are supported")
+        stop("Only ENTREZ or ENSEMBL gene IDs are supported.")
     
     mode <- match.arg(mode)
+    inp.id <- id
 
     # (a) based on BioC annotation utilities:
     #       (0) OrgDb: map between identifiers (if necessary)
@@ -54,15 +30,19 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     #
     if(mode=="org.db")
     {
+        # check for TxDb package
         txdb.pkg <- .org2pkg(org, type="TxDb")
+        .isAvailable(txdb.pkg, type="TxDb")
+
+        # check for BSgenome package
         bsgen.pkg <- .org2pkg(org, type="BSgenome") 
-        require(txdb.pkg, character.only=TRUE)
-        require(bsgen.pkg, character.only=TRUE)
+        .isAvailable(bsgen.pkg, type="BSgenome")
 
         txdb.spl <- unlist(strsplit(txdb.pkg, "\\."))
         txdb.id.type <- txdb.spl[length(txdb.spl)]
         if(txdb.id.type == "ensGene") txdb.id.type <- "ensembl"
         else if(txdb.id.type == "knownGene") txdb.id.type <- "entrez"
+        else if(txdb.id.type == "sgdGene") txdb.id.type <- "sgd"
         else stop(paste("TxDb does not use ENSEMBL or ENTREZ gene IDs"))
 
         # (0) map ensembl <-> entrez, 
@@ -70,23 +50,24 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
         if(id.type != txdb.id.type)
         {
             orgdb.pkg <- .org2pkg(org)
-            require(orgdb.pkg, character.only=TRUE)
+            .isAvailable(orgdb.pkg)
             orgdb.pkg <- get(orgdb.pkg)
             if(id.type == "entrez") id.map <- select(orgdb.pkg, 
                 keys=id, columns="ENSEMBL", keytype="ENTREZID") 
             else id.map <- select(orgdb.pkg, 
-                keys=id, columns= "ENTREZID", keytype="ENSEMBL")
-            id <- id.map[!duplicated(id.map[,1]), 2]
+                keys=id, columns="ENTREZID", keytype="ENSEMBL")
+            id <- id.map[!duplicated(id.map[,1]),]
+            id <- unique(id.map[, 2])
         }
         
         # (1) get genomic coordinates
         txdb.pkg <- get(txdb.pkg)
         coords <- genes(txdb.pkg, vals=list(gene_id=id))
+        id <- coords$gene_id
         
         # (2) get sequences
         bsgen.pkg <- get(bsgen.pkg)
         seqs <- getSeq(bsgen.pkg, coords) 
-        if(length(seqs) > 1) seqs <- seqs[match(id, names(seqs))]
         len <- width(seqs)
     }
     # (b) based on BioMart
@@ -94,8 +75,6 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     #
     else
     {
-        require(biomaRt)
-        require(Biostrings)
         id.type <- paste0(id.type, ifelse(id.type=="entrez", "gene", "_gene_id"))
         
         # setting mart
@@ -123,7 +102,8 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
         seqs <- getSequence(id=id, 
             type=id.type, seqType="gene_exon_intron", mart=ensembl)
         seqs <- seqs[!duplicated(seqs[,2]),]
-        seqs <- seqs[match(id, seqs[,2]),1]
+        id <- seqs[,2]
+        seqs <- seqs[,1]
         seqs <- sapply(seqs, DNAString, USE.NAMES=FALSE)
         len <- sapply(seqs, length)
     }
@@ -134,7 +114,47 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     res <- cbind(len, gc.cont)
     colnames(res) <- c("length", "gc")
     rownames(res) <- id
+
+    # (4) order according to input ids
+    if(mode == "org.db")
+        if(id.type != txdb.id.type)
+            rownames(res) <- id.map[match(id, id.map[,2]), 1]
+
+    not.found <- !(inp.id %in% rownames(res))
+    na.col <- rep(NA, sum(not.found))
+    rn <- c(rownames(res), inp.id[not.found])
+    res <- rbind(res, cbind(na.col, na.col))
+    rownames(res) <- rn
+    res <- res[inp.id,]
     return(res)
+}
+
+
+.isAvailable <- function(pkg, type="annotation")
+{
+    if(!(pkg %in% .packages(all.available=TRUE)))
+    {   
+        message(paste0("Corresponding ", type,  " package not found: ", 
+            pkg, "\nMake sure that you have it installed."))
+        choice <- readline("Install it now? (y/n): ")
+        if(choice == "y")
+        {   
+            source("http://bioconductor.org/biocLite.R")
+            biocLite(pkg)
+        }   
+        else stop(paste("Package", pkg, "is not available"))
+    }   
+    require(pkg, character.only = TRUE)
+}
+
+.autoDetectGeneIdType <- function(id)
+{
+    type <- NA
+    if(grepl("^[Ee][Nn][Ss][A-Za-z]{0,3}[Gg][0-9]+", id)) type <- "ensembl"
+    else if(grepl("^[0-9]+$", id)) type <- "entrez"
+    else if(grepl("^[Yy][A-Za-z]{2}[0-9]{3}[A-Za-z]", id)) type <- "sgd"
+    else if(grepl("^[Aa][Tt][0-9][A-Za-z][0-9]{5}", id)) type <- "tair"
+    return(type)
 }
 
 .getOrgIdType <- function(org)
@@ -148,11 +168,13 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
 
 .supportedOrganisms <- function() sub(".db0$", "", available.db0pkgs())
 
-.availableOrgPkgs <- function(type=c("OrgDb", "TxDb", "BSgenome"))
+.availableOrgPkgs <- function(type=c("OrgDb", "TxDb", "BSgenome"), local=TRUE)
 {
-    type <- type[1]
-    pkgs <- available.packages(BIOC.ANNO.URL)[, "Package"]
+    if(local) pkgs <- .packages(all.available=TRUE)
+    else pkgs <- available.packages(paste0("http://bioconductor.org/",
+        "packages/release/data/annotation/src/contrib"))[, "Package"]
     
+    type <- match.arg(type)
     org.string <- "^org.[A-z][a-z]+.[a-z]+.db$"
     if(type == "TxDb") 
         org.string <- "^TxDb.[A-Z][a-z]+.UCSC.[a-z]{2}[A-Za-z]*[0-9]{1,3}.[a-z]{3,5}Gene$"
@@ -165,17 +187,58 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
 
 .org2pkg <- function(org, type=c("OrgDb", "TxDb", "BSgenome"))
 {
-    type <- type[1]
-    ind <- apply(SPECIES, 1, function(r) org %in% r)
-    if(any(ind)) i <- which(ind)[1]
-    else stop(paste0("unrecognized organism ID \'", org, "\'"))
-    bioc.id <- SPECIES[i, "bioc"]
-    ucsc.id <- SPECIES[i, "ucsc"]
+    type <- match.arg(type)
 
+    SPECIES <- rbind(
+        c("anopheles", "Anopheles gambiae", "Ag", "aga", "anoGam", "7165"),
+        c("arabidopsis", "Arabidopsis thaliana", "At", "ath", NA, "3702"),
+        c("bovine", "Bos taurus", "Bt", "bta", "bosTau", "9913"),
+        c("canine", "Canis familiaris", "Cf", "cfa", "canFam", "9615"),
+        c("chicken", "Gallus gallus", "Gg", "gga", "galGal", "9031"), 
+        c("chimp", "Pan troglodytes", "Pt", "ptr", "PanTro", "9598"),
+        c("ecoliK12", "Escherichia coli K12", "EcK12", "eco", NA, "562,83333,511145"), 
+        c("ecoliSakai", "Escherichia coli Sakai", "EcSakai", "ecs", NA, "83334"),
+        c("fly", "Drosophila melanogaster", "Dm", "dme", "dm", "7227"),
+        c("human", "Homo sapiens", "Hs", "hsa", "hg", "9606"),
+        c("malaria", "Plasmodium falciparum", "Pf", "pfa", NA, "5833"),
+        c("mouse", "Mus musculus", "Mm", "mmu", "mm", "10090"),
+        c("pig", "Sus scrofa", "Ss", "ssc", "susScr", "9823"),
+        c("rat", "Rattus norvegicus", "Rn", "rno", "rn", "10116"), 
+        c("rhesus", "Macaca mulatta", "Mmu", "mcc", "rheMac", "9544"),  
+        c("worm", "Caenorhabditis elegans", "Ce", "cel", "ce", "6239"),
+        c("xenopus", "Xenopus laevis", "Xl", "xla", "NA", "8355"),
+        c("yeast", "Saccharomyces cerevisiae", "Sc", "sce", "sacCer", "4932,559292"),
+        c("zebrafish", "Danio rerio", "Dr", "dre", "danRer", "7955")
+    )
+    colnames(SPECIES) <- c("common", "tax", "bioc", "kegg", "ucsc", "ncbi")
+    
+
+    # org specification via 
+    # (a) 3-letter code, e.g. 'hsa' 
+    # (b) genome assembly, e.g. 'hg38'
+    is.genome <- sub("[0-9]+$", "", org) %in% SPECIES[,"ucsc"]
+    if(is.genome)
+    {
+        ucsc.id <- org
+        i <- grep(sub("[0-9]+$", "", org), SPECIES[,"ucsc"]) 
+        bioc.id <- SPECIES[i, "bioc"]
+    }
+    else
+    {
+        ind <- apply(SPECIES, 1, function(r) org %in% r)
+        if(any(ind)) i <- which(ind)[1]
+        else stop(paste0("unrecognized organism ID \'", org, "\'"))
+        bioc.id <- SPECIES[i, "bioc"]
+        ucsc.id <- SPECIES[i, "ucsc"]
+    }
+
+    # TxDB, BSgenome, or OrgDB package?
     if(type %in% c("TxDb", "BSgenome"))
     {
         pkg.string <- paste0("^", type, ".", bioc.id, "[a-z]+.UCSC.", ucsc.id)
         pkg <- grep(pkg.string, .availableOrgPkgs(type), value=TRUE)
+        if(length(pkg) == 0)
+            pkg <- grep(pkg.string, .availableOrgPkgs(type, local=FALSE), value=TRUE)
         if(length(pkg) == 0)
             stop(paste("No corresponding", type, "package for", org))
         else if(length(pkg) > 1)
@@ -209,11 +272,4 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     return(pkg)
 }
 
-.autoDetectGeneIdType <- function(id)
-{
-    type <- NA
-    if(length(grep("^ENS[A-Z]{0,3}G[0-9]+", id))) type <- "ensembl"
-    else if(length(grep("^[0-9]+$", id))) type <- "entrez"
-    return(type)
-}
 

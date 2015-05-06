@@ -8,6 +8,10 @@ importFrom(DESeq, newCountDataSet)
 importClassesFrom(Rsamtools,BamFileList)
 importClassesFrom(ShortRead, FastqFileList)
 importMethodsFrom(ShortRead, readFastq, alphabetByCycle, sread)
+importFrom("biomaRt", getBM, getSequence, listDatasets, useDataset, useMart)
+importClassesFrom("Biostrings", DNAString)
+importMethodsFrom("Biostrings", getSeq, alphabetFrequency)
+importFrom("Biostrings", DNAString)
 exportClasses(SeqExpressionSet)
 exportMethods(length, width, initialize, barplot, plot, plotQuality, exprs, offst, "offst<-", boxplot,
               meanVarPlot, biasPlot, plotNtFrequency, withinLaneNormalization, betweenLaneNormalization,
