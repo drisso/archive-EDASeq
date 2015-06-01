@@ -100,7 +100,7 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
         if(length(id) > 100) message("This may take a few minutes ...")
 
         seqs <- getSequence(id=id, 
-            type=id.type, seqType="gene_exon_intron", mart=ensembl)
+            type=id.type, seqType="cdna", mart=ensembl)
         seqs <- seqs[!duplicated(seqs[,2]),]
         id <- seqs[,2]
         seqs <- seqs[,1]

@@ -558,7 +558,8 @@ Accordingly, we can retrieve the precalculated yeast data that has been used
 throughout the vignette via
 
 <<getLengthAndGC-full, eval=FALSE>>=
-fData(data) <- get.gene.length.and.gc.content(featureNames(data), org="sacCer3", mode="org.db")
+fData(data) <- getGeneLengthAndGCContent(featureNames(data),
+                                              org="sacCer3", mode="org.db")
 @
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
