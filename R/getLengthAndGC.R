@@ -40,10 +40,15 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
 
         txdb.spl <- unlist(strsplit(txdb.pkg, "\\."))
         txdb.id.type <- txdb.spl[length(txdb.spl)]
-        if(txdb.id.type == "ensGene") txdb.id.type <- "ensembl"
-        else if(txdb.id.type == "knownGene") txdb.id.type <- "entrez"
-        else if(txdb.id.type == "sgdGene") txdb.id.type <- "sgd"
-        else stop(paste("TxDb does not use ENSEMBL or ENTREZ gene IDs"))
+        if(txdb.id.type == "ensGene") {
+          txdb.id.type <- "ensembl"
+        } else if(txdb.id.type == "knownGene") {
+          txdb.id.type <- "entrez"
+        } else if(txdb.id.type == "sgdGene") {
+          txdb.id.type <- "sgd"
+        } else {
+          stop(paste("TxDb does not use ENSEMBL or ENTREZ gene IDs"))
+        }
 
         # (0) map ensembl <-> entrez, 
         # if given id.type is entrez, but Txdb uses ensembl (or vice versa)
@@ -52,23 +57,26 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
             orgdb.pkg <- .org2pkg(org)
             .isAvailable(orgdb.pkg)
             orgdb.pkg <- get(orgdb.pkg)
-            if(id.type == "entrez") id.map <- select(orgdb.pkg, 
-                keys=id, columns="ENSEMBL", keytype="ENTREZID") 
-            else id.map <- select(orgdb.pkg, 
-                keys=id, columns="ENTREZID", keytype="ENSEMBL")
+            if(id.type == "entrez") {
+              id.map <- select(orgdb.pkg, keys=id, columns="ENSEMBL", keytype="ENTREZID")
+            } else {
+              id.map <- select(orgdb.pkg, keys=id, columns="ENTREZID", keytype="ENSEMBL")
+            }
             id <- id.map[!duplicated(id.map[,1]),]
             id <- unique(id.map[, 2])
         }
         
         # (1) get genomic coordinates
         txdb.pkg <- get(txdb.pkg)
-        coords <- genes(txdb.pkg, vals=list(gene_id=id))
-        id <- coords$gene_id
+        coords <- exonsBy(txdb.pkg, by="gene")
+        coords <- lapply(coords[id], reduce)
+        len <- sapply(coords, function(x) sum(width(x)))
         
         # (2) get sequences
         bsgen.pkg <- get(bsgen.pkg)
-        seqs <- getSeq(bsgen.pkg, coords) 
-        len <- width(seqs)
+        seqs <- lapply(coords, function(x) getSeq(bsgen.pkg, x))
+        gc.cont <- sapply(seqs, function(s)
+          mean(sapply(s, function(ss) sum(alphabetFrequency(ss, as.prob=TRUE)[c("C","G")]))))
     }
     # (b) based on BioMart
     #
@@ -99,17 +107,14 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
             ifelse(length(id) > 1, "s", ""), " ..."))
         if(length(id) > 100) message("This may take a few minutes ...")
 
-        seqs <- getSequence(id=id, 
-            type=id.type, seqType="cdna", mart=ensembl)
-        seqs <- seqs[!duplicated(seqs[,2]),]
-        id <- seqs[,2]
-        seqs <- seqs[,1]
-        seqs <- sapply(seqs, DNAString, USE.NAMES=FALSE)
-        len <- sapply(seqs, length)
+        seqs <- getSequence(id=id, type=id.type, seqType="cdna", mart=ensembl)
+        seqs <- sapply(id, function(x) seqs[seqs[,2]==x,1,])
+        id <- names(seqs)
+        seqs <- sapply(seqs, DNAStringSet)
+        longest <- lapply(seqs, function(x) x[[which.max(width(x))]])
+        len <- sapply(longest, length)
+        gc.cont <- sapply(longest, function(s) sum(alphabetFrequency(s, as.prob=TRUE)[c("C","G")]))
     }
-
-    gc.cont <- sapply(seqs, function(s) 
-        sum(alphabetFrequency(s, as.prob=TRUE)[c("C","G")])) 
 
     res <- cbind(len, gc.cont)
     colnames(res) <- c("length", "gc")
