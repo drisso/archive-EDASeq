@@ -4,7 +4,7 @@
 # date: 2015-03-10 13:32:37
 # 
 # descr: get.gene.length.and.gc.content
-# 
+# update: 2015-06-14 exonic sequences 
 ############################################################
 
 #
@@ -40,10 +40,15 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
 
         txdb.spl <- unlist(strsplit(txdb.pkg, "\\."))
         txdb.id.type <- txdb.spl[length(txdb.spl)]
-        if(txdb.id.type == "ensGene") txdb.id.type <- "ensembl"
-        else if(txdb.id.type == "knownGene") txdb.id.type <- "entrez"
-        else if(txdb.id.type == "sgdGene") txdb.id.type <- "sgd"
-        else stop(paste("TxDb does not use ENSEMBL or ENTREZ gene IDs"))
+        if(txdb.id.type == "ensGene") {
+          txdb.id.type <- "ensembl"
+        } else if(txdb.id.type == "knownGene") {
+          txdb.id.type <- "entrez"
+        } else if(txdb.id.type == "sgdGene") {
+          txdb.id.type <- "sgd"
+        } else {
+          stop(paste("TxDb does not use ENSEMBL or ENTREZ gene IDs"))
+        }
 
         # (0) map ensembl <-> entrez, 
         # if given id.type is entrez, but Txdb uses ensembl (or vice versa)
@@ -52,23 +57,26 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
             orgdb.pkg <- .org2pkg(org)
             .isAvailable(orgdb.pkg)
             orgdb.pkg <- get(orgdb.pkg)
-            if(id.type == "entrez") id.map <- select(orgdb.pkg, 
-                keys=id, columns="ENSEMBL", keytype="ENTREZID") 
-            else id.map <- select(orgdb.pkg, 
-                keys=id, columns="ENTREZID", keytype="ENSEMBL")
+            if(id.type == "entrez") {
+              id.map <- select(orgdb.pkg, keys=id, columns="ENSEMBL", keytype="ENTREZID")
+            } else {
+              id.map <- select(orgdb.pkg, keys=id, columns="ENTREZID", keytype="ENSEMBL")
+            }
             id <- id.map[!duplicated(id.map[,1]),]
             id <- unique(id.map[, 2])
         }
         
         # (1) get genomic coordinates
         txdb.pkg <- get(txdb.pkg)
-        coords <- genes(txdb.pkg, vals=list(gene_id=id))
-        id <- coords$gene_id
+        coords <- exonsBy(txdb.pkg, by="gene")
+        coords <- lapply(coords[id], reduce)
+        len <- sapply(coords, function(x) sum(width(x)))
         
         # (2) get sequences
         bsgen.pkg <- get(bsgen.pkg)
-        seqs <- getSeq(bsgen.pkg, coords) 
-        len <- width(seqs)
+        seqs <- lapply(coords, function(x) getSeq(bsgen.pkg, x))
+        gc.cont <- sapply(seqs, function(s)
+          mean(sapply(s, function(ss) sum(alphabetFrequency(ss, as.prob=TRUE)[c("C","G")]))))
     }
     # (b) based on BioMart
     #
@@ -99,17 +107,49 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
             ifelse(length(id) > 1, "s", ""), " ..."))
         if(length(id) > 100) message("This may take a few minutes ...")
 
-        seqs <- getSequence(id=id, 
-            type=id.type, seqType="gene_exon_intron", mart=ensembl)
-        seqs <- seqs[!duplicated(seqs[,2]),]
-        id <- seqs[,2]
-        seqs <- seqs[,1]
-        seqs <- sapply(seqs, DNAString, USE.NAMES=FALSE)
-        len <- sapply(seqs, length)
-    }
+        # download sequence
+        # (1) get exon coordinates
+        attrs <- c(id.type, "ensembl_exon_id", 
+            "chromosome_name", "exon_chrom_start", "exon_chrom_end")
+        coords <- getBM(filters=id.type, attributes=attrs, values=id, mart=ensembl)
+        coords <- sapply(id, 
+            function(i)
+            { 
+                i.coords <- coords[coords[,1]== i, 3:5]
+                g <- GRanges(i.coords[,1], IRanges(i.coords[,2],i.coords[,3]))
+                return(g)
+            })
+        coords <- lapply(coords[id], reduce)
+        len <- sapply(coords, function(x) sum(width(x)))
+        
+        # (2) get genes and sequences
+        sel <- c(id.type, "start_position", "end_position")
+        gene.pos <- getGene(id=id, type=id.type, mart=ensembl)
+        gene.pos <- gene.pos[,sel]
+        
+        gene.seqs <- getSequence(id=id, 
+            type=id.type, seqType="gene_exon_intron", mart=ensembl) 
 
-    gc.cont <- sapply(seqs, function(s) 
-        sum(alphabetFrequency(s, as.prob=TRUE)[c("C","G")])) 
+        # (3) get exonic sequences and correspondig GC content
+        gc.cont <- sapply(id, 
+            function(i)
+            {
+                # exon coordinates, gene position & sequence for current id i
+                ecoords <- coords[[i]]
+                gpos <- gene.pos[gene.pos[,id.type] == i, 
+                        c("start_position", "end_position")]
+                gseq <- DNAString(
+                    gene.seqs[gene.seqs[,id.type] == i, "gene_exon_intron"])
+                
+                # exon coordinates relative to gene position
+                start <- start(ranges(ecoords)) - gpos[1,1] + 1 
+                end <- end(ranges(ecoords)) - gpos[1,1] + 1
+                eseq <- gseq[IRanges(start, end)]
+                gc.cont <- sum(alphabetFrequency(eseq, as.prob=TRUE)[c("C","G")])
+                return(gc.cont)
+            }
+        )
+    }
 
     res <- cbind(len, gc.cont)
     colnames(res) <- c("length", "gc")
