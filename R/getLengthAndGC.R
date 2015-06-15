@@ -57,18 +57,16 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
             orgdb.pkg <- .org2pkg(org)
             .isAvailable(orgdb.pkg)
             orgdb.pkg <- get(orgdb.pkg)
-            if(id.type == "entrez") {
-              id.map <- select(orgdb.pkg, keys=id, columns="ENSEMBL", keytype="ENTREZID")
-            } else {
-              id.map <- select(orgdb.pkg, keys=id, columns="ENTREZID", keytype="ENSEMBL")
-            }
-            id <- id.map[!duplicated(id.map[,1]),]
-            id <- unique(id.map[, 2])
+            id.map <- mapIds(orgdb.pkg, keys=id, 
+                column=ifelse(id.type == "entrez", "ENSEMBL", "ENTREZID"), 
+                keytype=ifelse(id.type == "entrez", "ENTREZID", "ENSEMBL"))
+            id <- id.map[!is.na(id.map)]
         }
         
         # (1) get genomic coordinates
         txdb.pkg <- get(txdb.pkg)
         coords <- exonsBy(txdb.pkg, by="gene")
+        id <- id[id %in% names(coords)]
         coords <- lapply(coords[id], reduce)
         len <- sapply(coords, function(x) sum(width(x)))
         
@@ -112,6 +110,7 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
         attrs <- c(id.type, "ensembl_exon_id", 
             "chromosome_name", "exon_chrom_start", "exon_chrom_end")
         coords <- getBM(filters=id.type, attributes=attrs, values=id, mart=ensembl)
+        id <- unique(coords[,id.type])
         coords <- sapply(id, 
             function(i)
             { 
@@ -158,7 +157,7 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     # (4) order according to input ids
     if(mode == "org.db")
         if(id.type != txdb.id.type)
-            rownames(res) <- id.map[match(id, id.map[,2]), 1]
+            rownames(res) <- names(id)
 
     not.found <- !(inp.id %in% rownames(res))
     na.col <- rep(NA, sum(not.found))
