@@ -39,8 +39,8 @@ getGeneLengthAndGCContent(id, org, mode=c("biomart", "org.db"))
 
     Results for the same gene ID(s) can differ between both modes as they
     are based on different sources for the underlying genome assembly. While
-    the 'biomart' mode uses the latest ENSEMBL version, the 'org.db' mode builds
-    BioC annotation packages using typically the assembly from UCSC. 
+    the 'biomart' mode uses the latest ENSEMBL version, the 'org.db' mode uses
+    BioC annotation packages typically built from UCSC. 
 }
 
 \value{
