@@ -205,7 +205,7 @@ getGeneLengthAndGCContent <- function(id, org, mode=c("biomart", "org.db"))
     return(it)
 }   
 
-.supportedOrganisms <- function() sub(".db0$", "", available.db0pkgs())
+.supportedOrganisms <- function() sub(".db0$", "", .availableOrgPkgs())
 
 .availableOrgPkgs <- function(type=c("OrgDb", "TxDb", "BSgenome"), local=TRUE)
 {
