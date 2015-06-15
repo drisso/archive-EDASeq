@@ -36,6 +36,11 @@ getGeneLengthAndGCContent(id, org, mode=c("biomart", "org.db"))
     Bioconductor. This is much faster than the 'biomart' mode, but is only
     available for selected model organism currently supported by  
     BioC annotation functionality. 
+
+    Results for the same gene ID(s) can differ between both modes as they
+    are based on different sources for the underlying genome assembly. While
+    the 'biomart' mode uses the latest ENSEMBL version, the 'org.db' mode uses
+    BioC annotation packages typically built from UCSC. 
 }
 
 \value{
