@@ -21,7 +21,7 @@ r: bioc-devel
 warnings_are_errors: true
 
 # r_build_args: "--no-build-vignettes"
-# r_check_args: "--no-vignettes"
+# r_check_args: "--no-build-vignettes"
 
 notifications:
   email:
