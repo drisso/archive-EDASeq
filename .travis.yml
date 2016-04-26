@@ -12,6 +12,7 @@
 #----------------------------------------------------------------
 language: r
 cache: packages
+sudo: false
 
 # R versions to be tested on
 r: bioc-devel
