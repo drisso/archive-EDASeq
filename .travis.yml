@@ -32,5 +32,10 @@ notifications:
 r_packages:
   - covr
 
+## BiocCheck
+bioc_packages:
+  - BiocCheck
+
 after_success:
+  - R CMD BiocCheck .
   - Rscript -e 'covr::coveralls()'
